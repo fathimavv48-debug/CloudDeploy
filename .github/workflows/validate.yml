@@ -1,0 +1,59 @@
+
+name: CloudDeploy Website Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Static Website
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check required website files
+        run: |
+          test -s index.html
+          test -s style.css
+          test -s script.js
+          echo "All required website files exist."
+
+      - name: Validate HTML structure
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          html = Path("index.html").read_text(encoding="utf-8")
+
+          class Parser(HTMLParser):
+              pass
+
+          Parser().feed(html)
+
+          for required in [
+              "<!DOCTYPE html>",
+              "<html",
+              "</html>",
+              "style.css",
+              "script.js"
+          ]:
+              assert required.lower() in html.lower(), f"Missing: {required}"
+
+          print("HTML structure checks passed.")
+          PY
+
+      - name: Validate JavaScript syntax
+        run: node --check script.js
+
+      - name: Validation completed
+        run: echo "CloudDeploy website validation successful!"
